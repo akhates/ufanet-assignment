@@ -129,7 +129,6 @@ class TelegramBot:
     # Method for /start command, saves chat_id into database if doesn't exists
     def start(self, chat_id):
         self.cursor.execute(u"SELECT COUNT(1) FROM users WHERE chat_id = '{}'".format(chat_id))
-
         if self.cursor.fetchone()[0]:
             # chat_id существует
             return
@@ -147,17 +146,17 @@ class TelegramBot:
             self.send_message(u"Текст сообщения слишком длинный", chat_id)
             return
 
-        self.cursor.execute(u"SELECT id FROM messages WHERE chat_id = '%s' ORDER BY id DESC", (chat_id,))
+        self.cursor.execute(u"SELECT MAX(id) FROM messages WHERE chat_id = '%s'", (chat_id,))
         message_id = self.cursor.fetchone()[0]
 
         self.send_message(u"Заметка #{} сохранена.".format(message_id), chat_id)
 
     # Method for /read_last command, returning last saved message
     def read_last(self, chat_id):
-        self.cursor.execute(u"SELECT * FROM messages WHERE chat_id = '%s' ORDER BY id DESC", (chat_id,))
+        self.cursor.execute(u"SELECT MAX(id), text FROM messages WHERE chat_id = '%s'", (chat_id,))
         message = self.cursor.fetchone()
         message_id = message[0]
-        message_text = message[2]
+        message_text = message[1]
 
         self.send_message(u"Заметка #{}: {}".format(message_id, message_text), chat_id)
 
@@ -176,31 +175,29 @@ class TelegramBot:
             return
 
         # returning message
-        self.cursor.execute(u"SELECT * FROM messages WHERE id = '{}' AND chat_id = '{}' ORDER BY id DESC".format(message_id, chat_id))
-        message_text = self.cursor.fetchone()[2]
+        self.cursor.execute(u"SELECT text FROM messages WHERE id = '{}' AND chat_id = '{}' ORDER BY id DESC".format(message_id, chat_id))
+        message_text = self.cursor.fetchone()[0]
         self.send_message(u"Заметка #{}: {}".format(message_id, message_text), chat_id)
 
     # Method for /read_all, getting all saved messages
     def read_all(self, chat_id):
-        self.cursor.execute(u"SELECT * FROM messages WHERE chat_id = '%s' ORDER BY id", (chat_id,))
+        self.cursor.execute(u"SELECT id, text FROM messages WHERE chat_id = '%s' ORDER BY id", (chat_id,))
         messages = self.cursor.fetchall()
         if len(messages) == 0:
             self.send_message(u"У вас нет ни одной заметки.", chat_id)
             return
         for message in messages:
-            self.send_message(u"Заметка #{}: {}".format(message[0], message[2]), chat_id)
+            self.send_message(u"Заметка #{}: {}".format(message[0], message[1]), chat_id)
 
     # Method for /read_tag, returns all messages that has specified tag inside in it
     def read_tag(self, chat_id, tag):
-        self.cursor.execute(u"SELECT * FROM messages WHERE chat_id = '{}' ORDER BY id".format(chat_id).encode('utf8'))
+        self.cursor.execute(u"SELECT id, text FROM messages WHERE messages.`text` LIKE '%{}%' AND chat_id = '{}' COLLATE utf8_general_ci ORDER BY id".format(tag, chat_id).encode('utf8'))
         messages = self.cursor.fetchall()
-        print messages
         if len(messages) == 0:
             self.send_message(u"Нет сообщений имеющих данный тег", chat_id)
             return
         for message in messages:
-            if tag in message[2]:
-                self.send_message(u"Заметка #{}: {}".format(message[0], message[2]), chat_id)
+            self.send_message(u"Заметка #{}: {}".format(message[0], message[1]), chat_id)
 
     # Method for /tag <id>, returns descriptions of specified tags
     def tag(self, chat_id, tags):
@@ -214,18 +211,18 @@ class TelegramBot:
         for tag in tags:
             if tag[0] != "#":  # check if hashtag
                 continue
-            self.cursor.execute(u"SELECT * FROM tags WHERE name = '{}'".format(tag).encode('utf8'))
+            self.cursor.execute(u"SELECT description FROM tags WHERE name = '{}'".format(tag).encode('utf8'))
             query = self.cursor.fetchone()
-            self.send_message(u"Тэг: {}: {}".format(query[1], query[2]), chat_id)
+            self.send_message(u"Тэг: {}: {}".format(tag, query[1]), chat_id)
 
     # Method for /tag_all, returns descriptions of all tags
     def tag_all(self, chat_id):
-        self.cursor.execute(u"SELECT * FROM tags")
+        self.cursor.execute(u"SELECT name, description FROM tags")
         tags = self.cursor.fetchall()
         if len(tags) == 0:
             return
         for tag in tags:
-            self.send_message(u"Тэг: {}: {}".format(tag[1], tag[2]), chat_id)
+            self.send_message(u"Тэг: {}: {}".format(tag[0], tag[1]), chat_id)
 
     # Logging settings
     def init_logging(self):
@@ -249,13 +246,13 @@ class TelegramBot:
 
     # Long polling for telegram's API
     def start_long_polling(self):
+        last_update_id = None
+
+        # initializing logging
+        self.init_logging()
+        self.logger.info("Starting application...")
+
         try:
-            last_update_id = None
-
-            # initializing logging
-            self.init_logging()
-            self.logger.info("Starting application...")
-
             while True:
                 # request timeout specified in settings.json
                 sleep(self.request_timeout)

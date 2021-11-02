@@ -1,0 +1,7 @@
+[INFO] - 2021-11-03 00:39:45,444 - Starting application...
+[INFO] - 2021-11-03 00:39:54,693 - requesting [/tag #СТС] on behalf of [chat_id=114978469]
+[INFO] - 2021-11-03 00:40:02,858 - requesting [/tag #Python] on behalf of [chat_id=114978469]
+[INFO] - 2021-11-03 00:40:12,003 - requesting [/read_tag #Python] on behalf of [chat_id=114978469]
+[INFO] - 2021-11-03 00:40:29,549 - requesting [/write #Python крута^2] on behalf of [chat_id=114978469]
+[INFO] - 2021-11-03 00:40:33,421 - requesting [/read_tag #Python] on behalf of [chat_id=114978469]
+[INFO] - 2021-11-03 00:43:38,572 - Closing application...
