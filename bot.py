@@ -213,7 +213,7 @@ class TelegramBot:
                 continue
             self.cursor.execute(u"SELECT description FROM tags WHERE name = '{}'".format(tag).encode('utf8'))
             query = self.cursor.fetchone()
-            self.send_message(u"Тэг: {}: {}".format(tag, query[1]), chat_id)
+            self.send_message(u"Тэг: {}: {}".format(tag, query[0]), chat_id)
 
     # Method for /tag_all, returns descriptions of all tags
     def tag_all(self, chat_id):
